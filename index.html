@@ -318,16 +318,16 @@
             
             if (state.language === 'en') {
                 if (state.audience === 'kid') {
-                    promptText = "You are a fun museum guide for a 5-year-old child. Look at this image. Identify what it is (painting, artifact, sign). Explain it simply using fun analogies. Keep it under 80 words. Be enthusiastic!";
+                    promptText = "You are a fun museum guide for a 9-year-old child. Look at this image. Identify what it is (painting, artifact, sign). Explain it simply using fun analogies. Keep it under 150 words. Be enthusiastic!";
                 } else {
-                    promptText = "You are a professional museum curator. Identify this object or read this sign. Provide a concise historical and artistic context. Keep it under 100 words. Be sophisticated but accessible.";
+                    promptText = "You are a professional museum curator. Identify this object or read this sign. Provide a concise historical and artistic context. Keep it under 300 words. Be sophisticated but accessible.";
                 }
             } else {
                 // Mandarin Prompts
                 if (state.audience === 'kid') {
-                    promptText = "你是博物館的導覽員，現在要跟一個5歲的小朋友介紹這張照片裡的東西。請用簡單、有趣、生動的中文解釋，可以用比喻。請保持在100字以內。";
+                    promptText = "你是博物館的導覽員，現在要跟一個9歲的小朋友介紹這張照片裡的東西。請用簡單、有趣、生動的中文解釋，可以用比喻。請保持在200字以內。";
                 } else {
-                    promptText = "你是專業的博物館策展人。請辨識這張圖片中的文物或解說牌。請用繁體中文提供簡潔的歷史與藝術背景介紹。內容專業且平易近人，請保持在150字以內。";
+                    promptText = "你是專業的博物館策展人。請辨識這張圖片中的文物或解說牌。請用繁體中文提供簡潔的歷史與藝術背景介紹。內容專業且平易近人，請保持在300字以內。";
                 }
             }
 
@@ -348,7 +348,17 @@
                 body: JSON.stringify(payload)
             });
 
-            if (!response.ok) throw new Error("API Call Failed");
+            // UPDATED: Better error handling to show the real issue
+            if (!response.ok) {
+                let errorMessage = `API Error (${response.status})`;
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error?.message || errorMessage;
+                } catch (e) {
+                    // response was not JSON
+                }
+                throw new Error(errorMessage);
+            }
             
             const data = await response.json();
             return data.candidates[0].content.parts[0].text;
