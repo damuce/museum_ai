@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Museum AI Guide</title>
+    <!-- Tailwind CSS (via CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Custom styles to hide scrollbars but keep functionality */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* Pulse animation for recording/processing */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .animate-pulse-ring {
+            animation: pulse-ring 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-black text-white h-screen w-screen overflow-hidden flex flex-col font-sans">
+
+    <!-- 1. HEADER / TOP BAR -->
+    <header class="absolute top-0 left-0 w-full z-20 p-4 flex justify-between items-center bg-gradient-to-b from-black/70 to-transparent">
+        <div class="flex items-center space-x-2">
+            <i class="fa-solid fa-building-columns text-yellow-400"></i>
+            <h1 class="font-bold text-lg tracking-wide">Museum AI</h1>
+        </div>
+        <button id="btn-settings" class="bg-gray-800/80 backdrop-blur text-white px-3 py-1.5 rounded-full text-sm border border-gray-600">
+            <i class="fa-solid fa-gear mr-1"></i> Settings
+        </button>
+    </header>
+
+    <!-- 2. CAMERA VIEWPORT (Main Background) -->
+    <div class="relative flex-1 bg-gray-900 w-full overflow-hidden">
+        <!-- Video Element for Camera Stream -->
+        <video id="camera-feed" class="absolute inset-0 w-full h-full object-cover" autoplay playsinline muted></video>
+        
+        <!-- Canvas for capturing image (Hidden) -->
+        <canvas id="capture-canvas" class="hidden"></canvas>
+
+        <!-- Placeholder when camera is off -->
+        <div id="camera-placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-10 hidden">
+            <i class="fa-solid fa-camera-slash text-4xl text-gray-600 mb-4"></i>
+            <p class="text-gray-400">Camera access required</p>
+        </div>
+    </div>
+
+    <!-- 3. RESULT OVERLAY (Scrollable Sheet) -->
+    <!-- Initially hidden (translated down) -->
+    <div id="result-sheet" class="absolute bottom-0 left-0 w-full bg-gray-900/95 backdrop-blur-md rounded-t-3xl border-t border-gray-700 transition-transform duration-300 transform translate-y-[110%] z-30 max-h-[70vh] flex flex-col shadow-2xl">
+        
+        <!-- Drag Handle / Header -->
+        <div class="w-full flex justify-center pt-3 pb-1">
+            <div class="w-12 h-1.5 bg-gray-600 rounded-full"></div>
+        </div>
+        
+        <!-- Controls Header -->
+        <div class="px-6 py-2 flex justify-between items-center border-b border-gray-800">
+            <span id="result-title" class="text-sm text-gray-400 uppercase tracking-wider font-semibold">Explanation</span>
+            <div class="flex space-x-3">
+                <button id="btn-replay" class="text-yellow-400 hover:text-yellow-300"><i class="fa-solid fa-rotate-right text-xl"></i></button>
+                <button id="btn-stop" class="text-red-400 hover:text-red-300"><i class="fa-solid fa-stop text-xl"></i></button>
+                <button id="btn-close-result" class="text-gray-400 hover:text-white"><i class="fa-solid fa-times text-xl"></i></button>
+            </div>
+        </div>
+
+        <!-- Scrollable Content -->
+        <div class="p-6 overflow-y-auto no-scrollbar flex-1">
+            <!-- Loading State -->
+            <div id="loading-state" class="hidden flex flex-col items-center justify-center py-8">
+                <i class="fa-solid fa-circle-notch fa-spin text-3xl text-yellow-400 mb-3"></i>
+                <p class="text-sm text-gray-300 animate-pulse">Analyzing exhibit...</p>
+            </div>
+
+            <!-- Text Content -->
+            <div id="explanation-text" class="text-lg leading-relaxed text-gray-100 markdown-body">
+                <!-- AI Output goes here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. BOTTOM ACTION BAR -->
+    <div class="absolute bottom-0 w-full z-20 p-6 flex justify-center items-end bg-gradient-to-t from-black/80 via-black/40 to-transparent h-32">
+        <!-- Capture Button -->
+        <button id="btn-capture" class="w-20 h-20 rounded-full border-4 border-white/80 bg-white/20 backdrop-blur-sm flex items-center justify-center transition-all active:scale-95 shadow-lg">
+            <div class="w-16 h-16 bg-white rounded-full"></div>
+        </button>
+    </div>
+
+    <!-- 5. SETTINGS MODAL -->
+    <div id="settings-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-gray-800 w-11/12 max-w-md rounded-2xl p-6 border border-gray-700 shadow-2xl">
+            <h2 class="text-xl font-bold mb-4 flex items-center">
+                <i class="fa-solid fa-sliders text-yellow-400 mr-2"></i> Settings
+            </h2>
+            
+            <!-- API Key Input -->
+            <div class="mb-5">
+                <label class="block text-xs uppercase text-gray-400 font-semibold mb-1">Gemini API Key</label>
+                <input type="password" id="input-api-key" placeholder="Paste your API Key here" class="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:border-yellow-400 focus:outline-none transition-colors">
+                <p class="text-xs text-gray-500 mt-1">Key is saved locally in your browser.</p>
+            </div>
+
+            <!-- Audience Toggle -->
+            <div class="mb-5">
+                <label class="block text-xs uppercase text-gray-400 font-semibold mb-2">Audience Level</label>
+                <div class="flex bg-gray-900 rounded-lg p-1 border border-gray-600">
+                    <button class="flex-1 py-2 rounded-md text-sm transition-colors data-[active=true]:bg-gray-700 data-[active=true]:text-white text-gray-400" id="opt-audience-adult" data-active="true" onclick="setAudience('adult')">
+                        <i class="fa-solid fa-user-tie mr-1"></i> Adult
+                    </button>
+                    <button class="flex-1 py-2 rounded-md text-sm transition-colors data-[active=true]:bg-indigo-600 data-[active=true]:text-white text-gray-400" id="opt-audience-kid" data-active="false" onclick="setAudience('kid')">
+                        <i class="fa-solid fa-child-reaching mr-1"></i> Kid
+                    </button>
+                </div>
+            </div>
+
+            <!-- Language Toggle -->
+            <div class="mb-6">
+                <label class="block text-xs uppercase text-gray-400 font-semibold mb-2">Language / 語言</label>
+                <div class="flex bg-gray-900 rounded-lg p-1 border border-gray-600">
+                    <button class="flex-1 py-2 rounded-md text-sm transition-colors data-[active=true]:bg-gray-700 data-[active=true]:text-white text-gray-400" id="opt-lang-en" data-active="true" onclick="setLanguage('en')">
+                        English
+                    </button>
+                    <button class="flex-1 py-2 rounded-md text-sm transition-colors data-[active=true]:bg-red-600 data-[active=true]:text-white text-gray-400" id="opt-lang-zh" data-active="false" onclick="setLanguage('zh')">
+                        中文 (Mandarin)
+                    </button>
+                </div>
+            </div>
+
+            <button id="btn-save-settings" class="w-full bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-3 rounded-lg transition-colors">
+                Save & Continue
+            </button>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // --- CONFIGURATION ---
+        const MODEL_NAME = "gemini-1.5-flash"; // Fast & Efficient
+        
+        // --- STATE ---
+        let state = {
+            apiKey: localStorage.getItem('museum_guide_api_key') || '',
+            audience: localStorage.getItem('museum_guide_audience') || 'adult',
+            language: localStorage.getItem('museum_guide_language') || 'en',
+            isProcessing: false
+        };
+
+        // --- DOM ELEMENTS ---
+        const els = {
+            video: document.getElementById('camera-feed'),
+            canvas: document.getElementById('capture-canvas'),
+            captureBtn: document.getElementById('btn-capture'),
+            settingsBtn: document.getElementById('btn-settings'),
+            modal: document.getElementById('settings-modal'),
+            apiKeyInput: document.getElementById('input-api-key'),
+            saveSettingsBtn: document.getElementById('btn-save-settings'),
+            resultSheet: document.getElementById('result-sheet'),
+            closeResultBtn: document.getElementById('btn-close-result'),
+            explanationText: document.getElementById('explanation-text'),
+            loadingState: document.getElementById('loading-state'),
+            stopBtn: document.getElementById('btn-stop'),
+            replayBtn: document.getElementById('btn-replay'),
+            camPlaceholder: document.getElementById('camera-placeholder'),
+            // Toggles
+            audAdult: document.getElementById('opt-audience-adult'),
+            audKid: document.getElementById('opt-audience-kid'),
+            langEn: document.getElementById('opt-lang-en'),
+            langZh: document.getElementById('opt-lang-zh'),
+        };
+
+        // --- INITIALIZATION ---
+        window.onload = async () => {
+            updateSettingsUI();
+            
+            if (!state.apiKey) {
+                openModal(false); // Open modal, disallow closing without key
+            } else {
+                startCamera();
+            }
+        };
+
+        // --- CAMERA LOGIC ---
+        async function startCamera() {
+            try {
+                // Constraints for mobile rear camera
+                const constraints = {
+                    video: {
+                        facingMode: { ideal: "environment" },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                els.video.srcObject = stream;
+                els.camPlaceholder.classList.add('hidden');
+            } catch (err) {
+                console.error("Camera Error:", err);
+                els.camPlaceholder.classList.remove('hidden');
+                alert("Unable to access camera. Please ensure you are using HTTPS and have granted permissions.");
+            }
+        }
+
+        // --- SETTINGS LOGIC ---
+        function openModal(allowClose = true) {
+            els.modal.classList.remove('hidden');
+            // Force a reflow for transition
+            void els.modal.offsetWidth; 
+            els.modal.classList.remove('opacity-0');
+            
+            // Fill input
+            els.apiKeyInput.value = state.apiKey;
+
+            if(!allowClose) {
+                // Remove any 'click outside to close' logic if strict mode
+                els.saveSettingsBtn.innerText = "Start App";
+            } else {
+                els.saveSettingsBtn.innerText = "Save & Close";
+            }
+        }
+
+        function closeModal() {
+            els.modal.classList.add('opacity-0');
+            setTimeout(() => {
+                els.modal.classList.add('hidden');
+            }, 300);
+        }
+
+        els.settingsBtn.addEventListener('click', () => openModal(true));
+
+        els.saveSettingsBtn.addEventListener('click', () => {
+            const key = els.apiKeyInput.value.trim();
+            if (!key) {
+                alert("Please enter a valid Gemini API Key.");
+                return;
+            }
+            // Save to state and local storage
+            state.apiKey = key;
+            localStorage.setItem('museum_guide_api_key', key);
+            localStorage.setItem('museum_guide_audience', state.audience);
+            localStorage.setItem('museum_guide_language', state.language);
+            
+            closeModal();
+            startCamera(); // Restart camera in case it wasn't running
+        });
+
+        // Toggle Helpers
+        window.setAudience = (type) => {
+            state.audience = type;
+            updateSettingsUI();
+        };
+        window.setLanguage = (lang) => {
+            state.language = lang;
+            updateSettingsUI();
+        };
+
+        function updateSettingsUI() {
+            // Audience UI
+            els.audAdult.dataset.active = (state.audience === 'adult');
+            els.audKid.dataset.active = (state.audience === 'kid');
+            
+            // Language UI
+            els.langEn.dataset.active = (state.language === 'en');
+            els.langZh.dataset.active = (state.language === 'zh');
+        }
+
+        // --- CAPTURE & AI LOGIC ---
+        els.captureBtn.addEventListener('click', async () => {
+            if (state.isProcessing) return;
+            
+            // 1. UI Effects
+            state.isProcessing = true;
+            els.captureBtn.classList.add('animate-pulse-ring');
+            
+            // 2. Capture Frame
+            const context = els.canvas.getContext('2d');
+            els.canvas.width = els.video.videoWidth;
+            els.canvas.height = els.video.videoHeight;
+            context.drawImage(els.video, 0, 0, els.canvas.width, els.canvas.height);
+            
+            // 3. Convert to Base64 (remove data prefix for API)
+            const base64Image = els.canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+
+            // 4. Show Result Sheet
+            showResultSheet(true);
+
+            // 5. Call Gemini
+            try {
+                const responseText = await callGemini(base64Image);
+                els.explanationText.innerText = responseText;
+                
+                // 6. Speak
+                speakText(responseText);
+            } catch (error) {
+                els.explanationText.innerText = "Error: " + error.message;
+            } finally {
+                state.isProcessing = false;
+                els.captureBtn.classList.remove('animate-pulse-ring');
+                showResultSheet(false); // Hide loader, show text
+            }
+        });
+
+        async function callGemini(base64Image) {
+            // Construct System Prompt based on settings
+            let promptText = "";
+            
+            if (state.language === 'en') {
+                if (state.audience === 'kid') {
+                    promptText = "You are a fun museum guide for a 5-year-old child. Look at this image. Identify what it is (painting, artifact, sign). Explain it simply using fun analogies. Keep it under 80 words. Be enthusiastic!";
+                } else {
+                    promptText = "You are a professional museum curator. Identify this object or read this sign. Provide a concise historical and artistic context. Keep it under 100 words. Be sophisticated but accessible.";
+                }
+            } else {
+                // Mandarin Prompts
+                if (state.audience === 'kid') {
+                    promptText = "你是博物館的導覽員，現在要跟一個5歲的小朋友介紹這張照片裡的東西。請用簡單、有趣、生動的中文解釋，可以用比喻。請保持在100字以內。";
+                } else {
+                    promptText = "你是專業的博物館策展人。請辨識這張圖片中的文物或解說牌。請用繁體中文提供簡潔的歷史與藝術背景介紹。內容專業且平易近人，請保持在150字以內。";
+                }
+            }
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${state.apiKey}`;
+            
+            const payload = {
+                contents: [{
+                    parts: [
+                        { text: promptText },
+                        { inline_data: { mime_type: "image/jpeg", data: base64Image } }
+                    ]
+                }]
+            };
+
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) throw new Error("API Call Failed");
+            
+            const data = await response.json();
+            return data.candidates[0].content.parts[0].text;
+        }
+
+        // --- UI UTILS FOR RESULT SHEET ---
+        function showResultSheet(isLoading) {
+            els.resultSheet.style.transform = "translateY(10%)"; // Slide up (10% means 90% visible)
+            
+            if (isLoading) {
+                els.loadingState.classList.remove('hidden');
+                els.explanationText.classList.add('hidden');
+                els.explanationText.innerText = "";
+            } else {
+                els.loadingState.classList.add('hidden');
+                els.explanationText.classList.remove('hidden');
+            }
+        }
+
+        els.closeResultBtn.addEventListener('click', () => {
+            els.resultSheet.style.transform = "translateY(110%)"; // Slide down hidden
+            stopSpeaking();
+        });
+
+        // --- TTS (TEXT TO SPEECH) ---
+        let currentUtterance = null;
+
+        function speakText(text) {
+            stopSpeaking(); // Stop any previous
+
+            if (!window.speechSynthesis) {
+                alert("Text-to-speech not supported on this browser.");
+                return;
+            }
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            currentUtterance = utterance;
+
+            // Voice Selection Logic
+            const voices = window.speechSynthesis.getVoices();
+            let selectedVoice = null;
+
+            if (state.language === 'zh') {
+                // Try to find a Chinese voice (Taiwan preferred, then general CN)
+                selectedVoice = voices.find(v => v.lang.includes('zh-TW')) || 
+                                voices.find(v => v.lang.includes('zh-CN')) || 
+                                voices.find(v => v.lang.includes('zh'));
+            } else {
+                // English
+                selectedVoice = voices.find(v => v.lang.includes('en-US')) || 
+                                voices.find(v => v.lang.includes('en-GB'));
+            }
+
+            if (selectedVoice) utterance.voice = selectedVoice;
+            
+            // Adjust pitch/rate for kids
+            if (state.audience === 'kid') {
+                utterance.pitch = 1.2;
+                utterance.rate = 1.1;
+            } else {
+                utterance.pitch = 1.0;
+                utterance.rate = 1.0;
+            }
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function stopSpeaking() {
+            if (window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+            }
+        }
+
+        els.stopBtn.addEventListener('click', stopSpeaking);
+        
+        els.replayBtn.addEventListener('click', () => {
+            const text = els.explanationText.innerText;
+            if(text) speakText(text);
+        });
+
+        // Ensure voices are loaded (Chrome sometimes loads them asynchronously)
+        window.speechSynthesis.onvoiceschanged = () => {
+            // Voices loaded
+        };
+
+    </script>
+</body>
+</html>
