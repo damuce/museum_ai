@@ -113,6 +113,13 @@
                 <p class="text-xs text-gray-500 mt-1">Key is saved locally in your browser.</p>
             </div>
 
+            <!-- Model Name Input (New) -->
+            <div class="mb-5">
+                <label class="block text-xs uppercase text-gray-400 font-semibold mb-1">AI Model Name</label>
+                <input type="text" id="input-model-name" placeholder="e.g., gemini-1.5-flash-001" class="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:border-yellow-400 focus:outline-none transition-colors">
+                <p class="text-xs text-gray-500 mt-1">Change this if the model is not found.</p>
+            </div>
+
             <!-- Audience Toggle -->
             <div class="mb-5">
                 <label class="block text-xs uppercase text-gray-400 font-semibold mb-2">Audience Level</label>
@@ -148,11 +155,13 @@
     <!-- JAVASCRIPT LOGIC -->
     <script>
         // --- CONFIGURATION ---
-        const MODEL_NAME = "gemini-1.5-flash"; // Fast & Efficient
+        // DEFAULT_MODEL is used if user hasn't saved a custom one
+        const DEFAULT_MODEL = "gemini-1.5-flash-001"; 
         
         // --- STATE ---
         let state = {
             apiKey: localStorage.getItem('museum_guide_api_key') || '',
+            modelName: localStorage.getItem('museum_guide_model_name') || DEFAULT_MODEL,
             audience: localStorage.getItem('museum_guide_audience') || 'adult',
             language: localStorage.getItem('museum_guide_language') || 'en',
             isProcessing: false
@@ -166,6 +175,7 @@
             settingsBtn: document.getElementById('btn-settings'),
             modal: document.getElementById('settings-modal'),
             apiKeyInput: document.getElementById('input-api-key'),
+            modelNameInput: document.getElementById('input-model-name'),
             saveSettingsBtn: document.getElementById('btn-save-settings'),
             resultSheet: document.getElementById('result-sheet'),
             closeResultBtn: document.getElementById('btn-close-result'),
@@ -222,6 +232,7 @@
             
             // Fill input
             els.apiKeyInput.value = state.apiKey;
+            els.modelNameInput.value = state.modelName;
 
             if(!allowClose) {
                 // Remove any 'click outside to close' logic if strict mode
@@ -242,13 +253,17 @@
 
         els.saveSettingsBtn.addEventListener('click', () => {
             const key = els.apiKeyInput.value.trim();
+            const model = els.modelNameInput.value.trim() || DEFAULT_MODEL;
+
             if (!key) {
                 alert("Please enter a valid Gemini API Key.");
                 return;
             }
             // Save to state and local storage
             state.apiKey = key;
+            state.modelName = model;
             localStorage.setItem('museum_guide_api_key', key);
+            localStorage.setItem('museum_guide_model_name', model);
             localStorage.setItem('museum_guide_audience', state.audience);
             localStorage.setItem('museum_guide_language', state.language);
             
@@ -331,7 +346,8 @@
                 }
             }
 
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${state.apiKey}`;
+            // Use the dynamic model name from state
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${state.modelName}:generateContent?key=${state.apiKey}`;
             
             const payload = {
                 contents: [{
