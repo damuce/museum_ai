@@ -10,43 +10,27 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* Custom styles to hide scrollbars but keep functionality */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-        /* Pulse animation for recording/processing */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         @keyframes pulse-ring {
             0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
             70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
             100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
-        .animate-pulse-ring {
-            animation: pulse-ring 2s infinite;
-        }
-        /* Range Slider Styling */
+        .animate-pulse-ring { animation: pulse-ring 2s infinite; }
         input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 20px;
-            width: 20px;
-            border-radius: 50%;
-            background: #facc15;
-            cursor: pointer;
-            margin-top: -6px;
+            -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%;
+            background: #facc15; cursor: pointer; margin-top: -6px;
         }
         input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 8px;
-            cursor: pointer;
-            background: #4b5563;
-            border-radius: 4px;
+            width: 100%; height: 8px; cursor: pointer; background: #4b5563; border-radius: 4px;
         }
     </style>
 </head>
 <body class="bg-black text-white h-screen w-screen overflow-hidden flex flex-col font-sans">
+
+    <!-- Audio Element for AI Voice -->
+    <audio id="ai-audio-player" class="hidden"></audio>
 
     <!-- 1. HEADER / TOP BAR -->
     <header class="absolute top-0 left-0 w-full z-20 p-4 flex justify-between items-center bg-gradient-to-b from-black/70 to-transparent">
@@ -59,67 +43,48 @@
         </button>
     </header>
 
-    <!-- 2. CAMERA VIEWPORT (Main Background) -->
+    <!-- 2. CAMERA VIEWPORT -->
     <div class="relative flex-1 bg-gray-900 w-full overflow-hidden">
-        <!-- Video Element for Camera Stream -->
         <video id="camera-feed" class="absolute inset-0 w-full h-full object-cover" autoplay playsinline muted></video>
-        
-        <!-- Canvas for capturing image (Hidden) -->
         <canvas id="capture-canvas" class="hidden"></canvas>
-
-        <!-- Placeholder when camera is off -->
         <div id="camera-placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-10 hidden">
             <i class="fa-solid fa-camera-slash text-4xl text-gray-600 mb-4"></i>
             <p class="text-gray-400">Camera access required</p>
         </div>
     </div>
 
-    <!-- 3. RESULT OVERLAY (Scrollable Sheet) -->
-    <!-- Initially hidden (translated down) -->
+    <!-- 3. RESULT OVERLAY -->
     <div id="result-sheet" class="absolute bottom-0 left-0 w-full bg-gray-900/95 backdrop-blur-md rounded-t-3xl border-t border-gray-700 transition-transform duration-300 transform translate-y-[110%] z-30 max-h-[70vh] flex flex-col shadow-2xl">
-        
-        <!-- Drag Handle / Header -->
         <div class="w-full flex justify-center pt-3 pb-1">
             <div class="w-12 h-1.5 bg-gray-600 rounded-full"></div>
         </div>
         
-        <!-- Controls Header -->
         <div class="px-6 py-4 flex justify-between items-center border-b border-gray-800">
-            <span id="result-title" class="text-sm text-gray-400 uppercase tracking-wider font-semibold">Explanation</span>
-            <div class="flex items-center space-x-6">
-                <!-- Play Button -->
-                <button id="btn-play" class="text-yellow-400 hover:text-yellow-300 active:scale-95 transition-transform">
-                    <i class="fa-solid fa-play text-3xl"></i>
+            <span class="text-sm text-gray-400 uppercase tracking-wider font-semibold">AI Explanation</span>
+            <div class="flex items-center space-x-8">
+                <button id="btn-play" class="text-yellow-400 hover:text-yellow-300 active:scale-90 transition-transform">
+                    <i class="fa-solid fa-play text-4xl"></i>
                 </button>
-                <!-- Pause Button -->
-                <button id="btn-pause" class="text-yellow-400 hover:text-yellow-300 active:scale-95 transition-transform">
-                    <i class="fa-solid fa-pause text-3xl"></i>
+                <button id="btn-pause" class="text-yellow-400 hover:text-yellow-300 active:scale-90 transition-transform">
+                    <i class="fa-solid fa-pause text-4xl"></i>
                 </button>
-                <!-- Close Button -->
-                <button id="btn-close-result" class="text-gray-400 hover:text-white active:scale-95 transition-transform ml-2">
-                    <i class="fa-solid fa-times text-3xl"></i>
+                <button id="btn-close-result" class="text-gray-400 hover:text-white active:scale-90 transition-transform ml-2">
+                    <i class="fa-solid fa-times text-4xl"></i>
                 </button>
             </div>
         </div>
 
-        <!-- Scrollable Content -->
         <div class="p-6 overflow-y-auto no-scrollbar flex-1">
-            <!-- Loading State -->
             <div id="loading-state" class="hidden flex flex-col items-center justify-center py-8">
                 <i class="fa-solid fa-circle-notch fa-spin text-3xl text-yellow-400 mb-3"></i>
-                <p class="text-sm text-gray-300 animate-pulse">Analyzing exhibit...</p>
+                <p class="text-sm text-gray-300 animate-pulse">Consulting AI Curator...</p>
             </div>
-
-            <!-- Text Content -->
-            <div id="explanation-text" class="text-lg leading-relaxed text-gray-100 markdown-body">
-                <!-- AI Output goes here -->
-            </div>
+            <div id="explanation-text" class="text-lg leading-relaxed text-gray-100 italic"></div>
         </div>
     </div>
 
     <!-- 4. BOTTOM ACTION BAR -->
     <div class="absolute bottom-0 w-full z-20 p-6 flex justify-center items-end bg-gradient-to-t from-black/80 via-black/40 to-transparent h-32">
-        <!-- Capture Button -->
         <button id="btn-capture" class="w-20 h-20 rounded-full border-4 border-white/80 bg-white/20 backdrop-blur-sm flex items-center justify-center transition-all active:scale-95 shadow-lg">
             <div class="w-16 h-16 bg-white rounded-full"></div>
         </button>
@@ -132,64 +97,44 @@
                 <i class="fa-solid fa-sliders text-yellow-400 mr-2"></i> Settings
             </h2>
             
-            <!-- API Key Input -->
             <div class="mb-5">
                 <label class="block text-xs uppercase text-gray-400 font-semibold mb-1">Gemini API Key</label>
-                <input type="password" id="input-api-key" placeholder="Paste your API Key here" class="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:border-yellow-400 focus:outline-none transition-colors">
-                <p class="text-xs text-gray-500 mt-1">Key is saved locally in your browser.</p>
+                <input type="password" id="input-api-key" placeholder="Paste your API Key here" class="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:border-yellow-400 focus:outline-none">
             </div>
 
-            <!-- Word Count Slider (Replaced Model Input) -->
             <div class="mb-5">
                 <div class="flex justify-between items-center mb-2">
-                    <label class="block text-xs uppercase text-gray-400 font-semibold">Max Response Length</label>
-                    <span id="lbl-word-count" class="text-xs text-yellow-400 font-bold bg-gray-900 px-2 py-1 rounded border border-gray-700">150 words</span>
+                    <label class="block text-xs uppercase text-gray-400 font-semibold">Explanation Length</label>
+                    <span id="lbl-word-count" class="text-xs text-yellow-400 font-bold bg-gray-900 px-2 py-1 rounded">150 words</span>
                 </div>
                 <input type="range" id="input-word-count" min="60" max="300" step="10" value="150" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer">
-                <div class="flex justify-between text-[10px] text-gray-500 mt-2 font-mono">
-                    <span>Simple (60)</span>
-                    <span>Heavy (300)</span>
-                </div>
             </div>
 
-            <!-- Audience Toggle -->
             <div class="mb-5">
-                <label class="block text-xs uppercase text-gray-400 font-semibold mb-2">Audience Level</label>
+                <label class="block text-xs uppercase text-gray-400 font-semibold mb-2">Audience</label>
                 <div class="flex bg-gray-900 rounded-lg p-1 border border-gray-600">
-                    <button class="flex-1 py-2 rounded-md text-sm transition-colors data-[active=true]:bg-gray-700 data-[active=true]:text-white text-gray-400" id="opt-audience-adult" data-active="true" onclick="setAudience('adult')">
-                        <i class="fa-solid fa-user-tie mr-1"></i> Adult
-                    </button>
-                    <button class="flex-1 py-2 rounded-md text-sm transition-colors data-[active=true]:bg-indigo-600 data-[active=true]:text-white text-gray-400" id="opt-audience-kid" data-active="false" onclick="setAudience('kid')">
-                        <i class="fa-solid fa-child-reaching mr-1"></i> Kid
-                    </button>
+                    <button class="flex-1 py-2 rounded-md text-sm data-[active=true]:bg-gray-700 data-[active=true]:text-white text-gray-400" id="opt-audience-adult" data-active="true" onclick="setAudience('adult')">Adult</button>
+                    <button class="flex-1 py-2 rounded-md text-sm data-[active=true]:bg-indigo-600 data-[active=true]:text-white text-gray-400" id="opt-audience-kid" data-active="false" onclick="setAudience('kid')">Kid</button>
                 </div>
             </div>
 
-            <!-- Language Toggle -->
             <div class="mb-6">
-                <label class="block text-xs uppercase text-gray-400 font-semibold mb-2">Language / 語言</label>
+                <label class="block text-xs uppercase text-gray-400 font-semibold mb-2">Language</label>
                 <div class="flex bg-gray-900 rounded-lg p-1 border border-gray-600">
-                    <button class="flex-1 py-2 rounded-md text-sm transition-colors data-[active=true]:bg-gray-700 data-[active=true]:text-white text-gray-400" id="opt-lang-en" data-active="true" onclick="setLanguage('en')">
-                        English
-                    </button>
-                    <button class="flex-1 py-2 rounded-md text-sm transition-colors data-[active=true]:bg-red-600 data-[active=true]:text-white text-gray-400" id="opt-lang-zh" data-active="false" onclick="setLanguage('zh')">
-                        中文 (Mandarin)
-                    </button>
+                    <button class="flex-1 py-2 rounded-md text-sm data-[active=true]:bg-gray-700 data-[active=true]:text-white text-gray-400" id="opt-lang-en" data-active="true" onclick="setLanguage('en')">English</button>
+                    <button class="flex-1 py-2 rounded-md text-sm data-[active=true]:bg-red-600 data-[active=true]:text-white text-gray-400" id="opt-lang-zh" data-active="false" onclick="setLanguage('zh')">中文</button>
                 </div>
             </div>
 
-            <button id="btn-save-settings" class="w-full bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-3 rounded-lg transition-colors">
-                Save & Continue
-            </button>
+            <button id="btn-save-settings" class="w-full bg-yellow-400 text-black font-bold py-3 rounded-lg">Save & Continue</button>
         </div>
     </div>
 
-    <!-- JAVASCRIPT LOGIC -->
     <script>
-        // --- CONFIGURATION ---
-        const DEFAULT_MODEL = "gemini-2.5-flash"; 
-        
-        // --- STATE ---
+        const API_KEY = ""; // Execution environment key placeholder
+        const TEXT_MODEL = "gemini-2.5-flash-preview-09-2025";
+        const TTS_MODEL = "gemini-2.5-flash-preview-tts";
+
         let state = {
             apiKey: localStorage.getItem('museum_guide_api_key') || '',
             wordCount: parseInt(localStorage.getItem('museum_guide_word_count')) || 150,
@@ -198,7 +143,6 @@
             isProcessing: false
         };
 
-        // --- DOM ELEMENTS ---
         const els = {
             video: document.getElementById('camera-feed'),
             canvas: document.getElementById('capture-canvas'),
@@ -206,312 +150,169 @@
             settingsBtn: document.getElementById('btn-settings'),
             modal: document.getElementById('settings-modal'),
             apiKeyInput: document.getElementById('input-api-key'),
-            
-            // Slider Elements
             wordCountInput: document.getElementById('input-word-count'),
             wordCountLabel: document.getElementById('lbl-word-count'),
-
             saveSettingsBtn: document.getElementById('btn-save-settings'),
             resultSheet: document.getElementById('result-sheet'),
-            closeResultBtn: document.getElementById('btn-close-result'),
             explanationText: document.getElementById('explanation-text'),
             loadingState: document.getElementById('loading-state'),
-            
-            // Updated Player Buttons
             playBtn: document.getElementById('btn-play'),
             pauseBtn: document.getElementById('btn-pause'),
-            
-            camPlaceholder: document.getElementById('camera-placeholder'),
-            // Toggles
+            closeResultBtn: document.getElementById('btn-close-result'),
+            audioPlayer: document.getElementById('ai-audio-player'),
             audAdult: document.getElementById('opt-audience-adult'),
             audKid: document.getElementById('opt-audience-kid'),
             langEn: document.getElementById('opt-lang-en'),
             langZh: document.getElementById('opt-lang-zh'),
         };
 
-        // --- INITIALIZATION ---
-        window.onload = async () => {
+        window.onload = () => {
             updateSettingsUI();
-            
-            // Add slider listener
-            els.wordCountInput.addEventListener('input', (e) => {
-                els.wordCountLabel.innerText = `${e.target.value} words`;
-            });
-
-            if (!state.apiKey) {
-                openModal(false); // Open modal, disallow closing without key
-            } else {
-                startCamera();
-            }
+            els.wordCountInput.oninput = (e) => els.wordCountLabel.innerText = `${e.target.value} words`;
+            if (!state.apiKey) openModal(false); else startCamera();
         };
 
-        // --- CAMERA LOGIC ---
         async function startCamera() {
             try {
-                // Constraints for mobile rear camera
-                const constraints = {
-                    video: {
-                        facingMode: { ideal: "environment" },
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }
-                };
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
                 els.video.srcObject = stream;
-                els.camPlaceholder.classList.add('hidden');
-            } catch (err) {
-                console.error("Camera Error:", err);
-                els.camPlaceholder.classList.remove('hidden');
-                alert("Unable to access camera. Please ensure you are using HTTPS and have granted permissions.");
-            }
+            } catch (err) { alert("Camera access denied."); }
         }
 
-        // --- SETTINGS LOGIC ---
         function openModal(allowClose = true) {
             els.modal.classList.remove('hidden');
-            // Force a reflow for transition
-            void els.modal.offsetWidth; 
-            els.modal.classList.remove('opacity-0');
-            
-            // Fill input
+            setTimeout(() => els.modal.classList.remove('opacity-0'), 10);
             els.apiKeyInput.value = state.apiKey;
             els.wordCountInput.value = state.wordCount;
             els.wordCountLabel.innerText = `${state.wordCount} words`;
-
-            if(!allowClose) {
-                // Remove any 'click outside to close' logic if strict mode
-                els.saveSettingsBtn.innerText = "Start App";
-            } else {
-                els.saveSettingsBtn.innerText = "Save & Close";
-            }
         }
 
-        function closeModal() {
-            els.modal.classList.add('opacity-0');
-            setTimeout(() => {
-                els.modal.classList.add('hidden');
-            }, 300);
-        }
-
-        els.settingsBtn.addEventListener('click', () => openModal(true));
-
-        els.saveSettingsBtn.addEventListener('click', () => {
-            const key = els.apiKeyInput.value.trim();
-            const count = els.wordCountInput.value;
-
-            if (!key) {
-                alert("Please enter a valid Gemini API Key.");
-                return;
-            }
-            // Save to state and local storage
-            state.apiKey = key;
-            state.wordCount = count;
-            localStorage.setItem('museum_guide_api_key', key);
-            localStorage.setItem('museum_guide_word_count', count);
+        els.saveSettingsBtn.onclick = () => {
+            state.apiKey = els.apiKeyInput.value.trim();
+            state.wordCount = els.wordCountInput.value;
+            localStorage.setItem('museum_guide_api_key', state.apiKey);
+            localStorage.setItem('museum_guide_word_count', state.wordCount);
             localStorage.setItem('museum_guide_audience', state.audience);
             localStorage.setItem('museum_guide_language', state.language);
-            
-            closeModal();
-            startCamera(); // Restart camera in case it wasn't running
-        });
-
-        // Toggle Helpers
-        window.setAudience = (type) => {
-            state.audience = type;
-            updateSettingsUI();
-        };
-        window.setLanguage = (lang) => {
-            state.language = lang;
-            updateSettingsUI();
+            els.modal.classList.add('opacity-0');
+            setTimeout(() => { els.modal.classList.add('hidden'); startCamera(); }, 300);
         };
 
+        window.setAudience = (t) => { state.audience = t; updateSettingsUI(); };
+        window.setLanguage = (l) => { state.language = l; updateSettingsUI(); };
         function updateSettingsUI() {
-            // Audience UI
-            els.audAdult.dataset.active = (state.audience === 'adult');
-            els.audKid.dataset.active = (state.audience === 'kid');
-            
-            // Language UI
-            els.langEn.dataset.active = (state.language === 'en');
-            els.langZh.dataset.active = (state.language === 'zh');
+            els.audAdult.dataset.active = state.audience === 'adult';
+            els.audKid.dataset.active = state.audience === 'kid';
+            els.langEn.dataset.active = state.language === 'en';
+            els.langZh.dataset.active = state.language === 'zh';
         }
 
-        // --- CAPTURE & AI LOGIC ---
-        els.captureBtn.addEventListener('click', async () => {
+        els.captureBtn.onclick = async () => {
             if (state.isProcessing) return;
-            
-            // 1. UI Effects
+
+            // iOS FIX: Initialize audio engine on user gesture
+            els.audioPlayer.play().catch(() => {}); 
+            els.audioPlayer.pause();
+
             state.isProcessing = true;
             els.captureBtn.classList.add('animate-pulse-ring');
             
-            // 2. Capture Frame
             const context = els.canvas.getContext('2d');
             els.canvas.width = els.video.videoWidth;
             els.canvas.height = els.video.videoHeight;
             context.drawImage(els.video, 0, 0, els.canvas.width, els.canvas.height);
-            
-            // 3. Convert to Base64 (remove data prefix for API)
             const base64Image = els.canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
-            // 4. Show Result Sheet
             showResultSheet(true);
 
-            // 5. Call Gemini
             try {
-                const responseText = await callGemini(base64Image);
-                els.explanationText.innerText = responseText;
-                
-                // 6. Speak (Auto-read)
-                speakText(responseText);
-            } catch (error) {
-                els.explanationText.innerText = "Error: " + error.message;
+                const text = await getAIExplanation(base64Image);
+                els.explanationText.innerText = text;
+                await playAIVoice(text);
+            } catch (err) {
+                els.explanationText.innerText = "Error: " + err.message;
             } finally {
                 state.isProcessing = false;
                 els.captureBtn.classList.remove('animate-pulse-ring');
-                showResultSheet(false); // Hide loader, show text
+                showResultSheet(false);
             }
-        });
+        };
 
-        async function callGemini(base64Image) {
-            // Construct System Prompt based on settings
-            let promptText = "";
-            let words = state.wordCount;
-            
-            if (state.language === 'en') {
-                if (state.audience === 'kid') {
-                    promptText = `You are a fun museum guide for a child. Identify this object/sign. Explain it simply with fun analogies. Keep it under ${words} words. Be enthusiastic!`;
-                } else {
-                    promptText = `You are a professional museum curator. Identify this object/sign. Provide a concise historical and artistic context. Keep it under ${words} words. Be sophisticated but accessible.`;
-                }
-            } else {
-                // Mandarin Prompts
-                if (state.audience === 'kid') {
-                    promptText = `你是博物館的導覽員，跟小朋友介紹這張照片。用簡單有趣的中文解釋，可以用比喻。保持在${words}字以內。`;
-                } else {
-                    promptText = `你是專業的博物館策展人。辨識此文物或說明牌。用繁體中文提供專業且平易近人的歷史背景介紹。保持在${words}字以內。`;
-                }
-            }
+        async function getAIExplanation(imageData) {
+            let prompt = state.language === 'en' 
+                ? `Museum guide for ${state.audience}. Identify this. Explain simply in ${state.wordCount} words.`
+                : `博物館導覽(${state.audience})。請辨識並以繁體中文解釋，約${state.wordCount}字。`;
 
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_MODEL}:generateContent?key=${state.apiKey}`;
-            
-            const payload = {
-                contents: [{
-                    parts: [
-                        { text: promptText },
-                        { inline_data: { mime_type: "image/jpeg", data: base64Image } }
-                    ]
-                }]
-            };
-
-            const response = await fetch(url, {
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${TEXT_MODEL}:generateContent?key=${state.apiKey}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "image/jpeg", data: imageData } }] }]
+                })
             });
-
-            if (!response.ok) {
-                let errorMessage = `API Error (${response.status})`;
-                try {
-                    const errorData = await response.json();
-                    errorMessage = errorData.error?.message || errorMessage;
-                } catch (e) { }
-                throw new Error(errorMessage);
-            }
-            
-            const data = await response.json();
+            const data = await res.json();
+            if (data.error) throw new Error(data.error.message);
             return data.candidates[0].content.parts[0].text;
         }
 
-        // --- UI UTILS FOR RESULT SHEET ---
-        function showResultSheet(isLoading) {
-            els.resultSheet.style.transform = "translateY(10%)"; 
+        async function playAIVoice(text) {
+            const voice = state.audience === 'kid' ? "Puck" : "Kore";
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${TTS_MODEL}:generateContent?key=${state.apiKey}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: `Say clearly: ${text}` }] }],
+                    generationConfig: { 
+                        responseModalities: ["AUDIO"], 
+                        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } 
+                    }
+                })
+            });
+            const data = await res.json();
+            const pcmBase64 = data.candidates[0].content.parts[0].inlineData.data;
             
-            if (isLoading) {
-                els.loadingState.classList.remove('hidden');
-                els.explanationText.classList.add('hidden');
-                els.explanationText.innerText = "";
-            } else {
-                els.loadingState.classList.add('hidden');
-                els.explanationText.classList.remove('hidden');
-            }
+            // Convert PCM to WAV for Browser Playback
+            const wavBlob = pcmToWav(pcmBase64, 24000); 
+            const url = URL.createObjectURL(wavBlob);
+            els.audioPlayer.src = url;
+            els.audioPlayer.play();
         }
 
-        els.closeResultBtn.addEventListener('click', () => {
-            els.resultSheet.style.transform = "translateY(110%)"; 
-            cancelSpeech(); // Stop completely when closing
-        });
-
-        // --- TTS (TEXT TO SPEECH) ---
-        let currentUtterance = null;
-
-        function speakText(text) {
-            cancelSpeech(); // Stop any previous
-
-            if (!window.speechSynthesis) {
-                alert("Text-to-speech not supported on this browser.");
-                return;
-            }
-
-            const utterance = new SpeechSynthesisUtterance(text);
-            currentUtterance = utterance;
-
-            // Voice Selection Logic
-            const voices = window.speechSynthesis.getVoices();
-            let selectedVoice = null;
-
-            if (state.language === 'zh') {
-                selectedVoice = voices.find(v => v.lang.includes('zh-TW')) || 
-                                voices.find(v => v.lang.includes('zh-CN')) || 
-                                voices.find(v => v.lang.includes('zh'));
-            } else {
-                selectedVoice = voices.find(v => v.lang.includes('en-US')) || 
-                                voices.find(v => v.lang.includes('en-GB'));
-            }
-
-            if (selectedVoice) utterance.voice = selectedVoice;
-            
-            // Adjust pitch/rate for kids
-            if (state.audience === 'kid') {
-                utterance.pitch = 1.2;
-                utterance.rate = 1.1;
-            } else {
-                utterance.pitch = 1.0;
-                utterance.rate = 1.0;
-            }
-
-            window.speechSynthesis.speak(utterance);
+        function pcmToWav(base64, sampleRate) {
+            const buffer = Uint8Array.from(atob(base64), c => c.charCodeAt(0)).buffer;
+            const view = new DataView(new ArrayBuffer(44 + buffer.byteLength));
+            const writeString = (offset, string) => { for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i)); };
+            writeString(0, 'RIFF');
+            view.setUint32(4, 32 + buffer.byteLength, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(36, 'data');
+            view.setUint32(40, buffer.byteLength, true);
+            const pcm = new Uint8Array(buffer);
+            for (let i = 0; i < pcm.length; i++) view.setUint8(44 + i, pcm[i]);
+            return new Blob([view], { type: 'audio/wav' });
         }
 
-        function cancelSpeech() {
-            if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
-                window.speechSynthesis.cancel();
-            }
+        function showResultSheet(loading) {
+            els.resultSheet.style.transform = "translateY(10%)";
+            els.loadingState.classList.toggle('hidden', !loading);
+            els.explanationText.classList.toggle('hidden', loading);
         }
 
-        // --- BUTTON LISTENERS ---
-        
-        // Play Button: Resumes if paused, or plays from start if stopped/finished
-        els.playBtn.addEventListener('click', () => {
-            if (window.speechSynthesis.paused) {
-                window.speechSynthesis.resume();
-            } else if (!window.speechSynthesis.speaking) {
-                // If not speaking, read the text currently on screen
-                const text = els.explanationText.innerText;
-                if(text) speakText(text);
-            }
-        });
-
-        // Pause Button: Pauses speech
-        els.pauseBtn.addEventListener('click', () => {
-            if (window.speechSynthesis.speaking) {
-                window.speechSynthesis.pause();
-            }
-        });
-
-        // Ensure voices are loaded (Chrome sometimes loads them asynchronously)
-        window.speechSynthesis.onvoiceschanged = () => {
-            // Voices loaded
+        els.playBtn.onclick = () => els.audioPlayer.play();
+        els.pauseBtn.onclick = () => els.audioPlayer.pause();
+        els.closeResultBtn.onclick = () => {
+            els.resultSheet.style.transform = "translateY(110%)";
+            els.audioPlayer.pause();
         };
-
+        els.settingsBtn.onclick = () => openModal(true);
     </script>
 </body>
 </html>
